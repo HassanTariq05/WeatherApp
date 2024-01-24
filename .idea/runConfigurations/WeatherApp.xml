@@ -1,0 +1,9 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="WeatherApp" type="JarApplication">
+    <option name="JAR_PATH" value="$PROJECT_DIR$/out/artifacts/WeatherAppGUI_jar/WeatherAppGUI.jar" />
+    <option name="WORKING_DIRECTORY" value="C:\Users\hp\Desktop\WeatherApp" />
+    <option name="ALTERNATIVE_JRE_PATH" />
+    <module name="WeatherAppGUI" />
+    <method v="2" />
+  </configuration>
+</component>
