@@ -61,7 +61,7 @@ public class WeatherApp {
                 }
             }
 
-            
+
             //get temperature
             JSONArray temperatureData = (JSONArray) hourly.get("temperature_2m");
             double temperature = (double) temperatureData.get(index);
