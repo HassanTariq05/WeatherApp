@@ -1,5 +1,5 @@
 <component name="ArtifactManager">
-  <artifact type="jar" build-on-make="true" name="WeatherAppGUI:jar">
+  <artifact type="jar" name="WeatherAppGUI:jar">
     <output-path>$PROJECT_DIR$/out/artifacts/WeatherAppGUI_jar</output-path>
     <root id="archive" name="WeatherAppGUI.jar">
       <element id="module-output" name="WeatherAppGUI" />

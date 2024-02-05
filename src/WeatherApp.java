@@ -7,14 +7,18 @@ import org.json.simple.parser.JSONParser;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.Scanner;
 import org.json.simple.JSONObject;
 
 //retrieve weather data from API -
 public class WeatherApp {
-    public static JSONObject[] getWeatherData(String locationName) {
+    public static String currentHour;
+    public static JSONObject getWeatherData(String locationName) {
         JSONArray locationData = getLocationData(locationName);
 
         // extract latitude and longitude data
@@ -26,6 +30,8 @@ public class WeatherApp {
         String urlString = "https://api.open-meteo.com/v1/forecast?" +
                 "latitude=" + latitude + "&longitude=" + longitude +
                 "&hourly=temperature_2m,relativehumidity_2m,weathercode,windspeed_10m&timezone=auto";
+
+        System.out.println(urlString);
 
         try {
             HttpURLConnection conn = fetchApiResponse(urlString);
@@ -50,25 +56,50 @@ public class WeatherApp {
             JSONObject hourly = (JSONObject) resultJsonObj.get("hourly");
             JSONArray time = (JSONArray) hourly.get("time");
             int index = findIndexOfCurrentTime(time);
+            System.out.println("Current Index: " + index);
             int previousIndex = index;
 
-            int[] indexes = new int[6];
+            //get temperature for upcoming 24 hours
+            JSONArray temperatureDataForHours = (JSONArray) hourly.get("temperature_2m");
+            double[] temperaturesForHours = new double[24];
+            for(int i = 0; i < temperaturesForHours.length; i++) {
+                temperaturesForHours[i] = (double) temperatureDataForHours.get(i);
+                System.out.println(temperaturesForHours[i]);
+            }
+
+            //get weather code for upcoming 24 hours
+            JSONArray weatherCodeForHours = (JSONArray) hourly.get("weathercode");
+            String[] weatherconditionsForHours = new String[24];
+            for(int i = 0; i < weatherconditionsForHours.length; i++) {
+                weatherconditionsForHours[i] = convertWeatherCode((long) weatherCodeForHours.get(i));
+                System.out.println("Code" + weatherconditionsForHours[i]);
+            }
+
+            //build the weather JSON data object that we are going to access in our frontend
+            JSONObject weatherDataHours = new JSONObject();
+            for (int i = 0; i < temperaturesForHours.length; i++) {
+                weatherDataHours.put("temperature_hour_" + (i), temperaturesForHours[i]);
+                weatherDataHours.put("weather_condition_hour_" + (i), weatherconditionsForHours[i]);
+            }
+
+
+            //Indexes for upcoming weekdays
+            int[] indexForWeek = new int[6];
             for(int i = 0; i < 6; i++) {
-                indexes[i] = (index += 24);
-                System.out.println(indexes[i]);
+                indexForWeek[i] = (index += 24);
+//                System.out.println(indexForWeek[i]);
                 if(i == 5) {
                     index = previousIndex;
                 }
             }
 
-
-            //get temperature
+            //get temperature for upcoming weekdays
             JSONArray temperatureData = (JSONArray) hourly.get("temperature_2m");
             double temperature = (double) temperatureData.get(index);
             double[] temperatures = new double[6];
             for(int i = 0; i < 6; i++) {
-                temperatures[i] = (double) temperatureData.get(indexes[i]);
-                System.out.println(temperatures[i]);
+                temperatures[i] = (double) temperatureData.get(indexForWeek[i]);
+//                System.out.println(temperatures[i]);
             }
 
             //get weather code
@@ -76,7 +107,7 @@ public class WeatherApp {
             String weatherCondition = convertWeatherCode((long) weathercode.get(index));
             String[] weatherconditions = new String[6];
             for(int i = 0; i < 6; i++) {
-                weatherconditions[i] = convertWeatherCode((long) weathercode.get(indexes[i]));
+                weatherconditions[i] = convertWeatherCode((long) weathercode.get(indexForWeek[i]));
             }
 
             //get Humidity
@@ -84,7 +115,7 @@ public class WeatherApp {
             long humidity = (long) relativeHumidity.get(index);
             long[] humidities = new long[6];
             for(int i = 0; i < 6; i++) {
-                humidities[i] = (long) relativeHumidity.get(indexes[i]);
+                humidities[i] = (long) relativeHumidity.get(indexForWeek[i]);
             }
 
             //get WindSpeed
@@ -92,7 +123,7 @@ public class WeatherApp {
             double windspeed = (double) windspeedData.get(index);
             double[] windspeeds = new double[6];
             for(int i = 0; i < 6; i++) {
-                windspeeds[i] = (double) windspeedData.get(indexes[i]);
+                windspeeds[i] = (double) windspeedData.get(indexForWeek[i]);
             }
 
             //build the weather JSON data object that we are going to access in our frontend
@@ -138,9 +169,12 @@ public class WeatherApp {
             weatherDataDay7.put("humidity_day_7", humidities[5]);
             weatherDataDay7.put("windspeed_day_7", windspeeds[5]);
 
-            JSONObject[] weatherData = {weatherDataDay1, weatherDataDay2, weatherDataDay3,
-                                        weatherDataDay4, weatherDataDay5, weatherDataDay6,
-                                        weatherDataDay7};
+            JSONObject[] weekDaysData = {weatherDataDay1, weatherDataDay2, weatherDataDay3,
+                    weatherDataDay4, weatherDataDay5, weatherDataDay6,
+                    weatherDataDay7};
+            JSONObject weatherData = new JSONObject();
+            weatherData.put("week_data", weekDaysData);
+            weatherData.put("hours_data", weatherDataHours);
 
             return weatherData;
 
@@ -223,8 +257,28 @@ public class WeatherApp {
 
         //Format and print current Date and Time
         String formattedDateTime = currentDateTime.format(formatter);
-
         return formattedDateTime;
+    }
+    public static String getHourForIndex(int index) {
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.HOUR_OF_DAY, cal.get(Calendar.HOUR_OF_DAY) + index);
+        Date date = cal.getTime();
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("hh a");
+        return simpleDateFormat.format(date);
+    }
+    public static String getDayNameForIndex(int index) {
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.DAY_OF_WEEK, cal.get(Calendar.DAY_OF_WEEK) + index);
+        Date date = cal.getTime();
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("E");
+        return simpleDateFormat.format(date);
+    }
+    public static String getDayDateForIndex(int index) {
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.DAY_OF_WEEK, cal.get(Calendar.DAY_OF_WEEK) + index);
+        Date date = cal.getTime();
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd/MM");
+        return simpleDateFormat.format(date);
     }
 
     private static String convertWeatherCode(long weatherCode) {
@@ -233,10 +287,22 @@ public class WeatherApp {
             weatherCondition = "Clear";
         } else if (weatherCode > 0L && weatherCode <= 3L) {
             weatherCondition = "Cloudy";
-        } else if ((weatherCode >= 51L && weatherCode <= 67L) || (weatherCode >= 80L && weatherCode <= 99L)) {
+        } else if (weatherCode >= 4L && weatherCode <= 9L) {
+            weatherCondition = "Haze";
+        } else if (weatherCode >= 10L && weatherCode <= 19L) {
+            weatherCondition = "Mist";
+        } else if (weatherCode >= 20L && weatherCode <= 29L) {
+            weatherCondition = "Rain";
+        } else if (weatherCode >= 30L && weatherCode <= 39L) {
+            weatherCondition = "Storm";
+        } else if (weatherCode >= 40L && weatherCode <= 49L) {
+            weatherCondition = "Fog";
+        } else if ((weatherCode >= 50L && weatherCode <= 67L) || (weatherCode >= 80L && weatherCode <= 99L)) {
             weatherCondition = "Rain";
         } else if (weatherCode >= 71L && weatherCode <= 77L) {
             weatherCondition = "Snow";
+        } else {
+            weatherCondition = "Error";
         }
 
         return weatherCondition;
