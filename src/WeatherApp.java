@@ -29,7 +29,7 @@ public class WeatherApp {
         //build API request URL with location coordinates
         String urlString = "https://api.open-meteo.com/v1/forecast?" +
                 "latitude=" + latitude + "&longitude=" + longitude +
-                "&hourly=temperature_2m,relativehumidity_2m,weathercode,windspeed_10m&timezone=auto";
+                "&hourly=temperature_2m,relativehumidity_2m,precipitation_probability,visibility,weathercode,windspeed_10m&timezone=auto";
 
         System.out.println(urlString);
 
@@ -63,7 +63,7 @@ public class WeatherApp {
             JSONArray temperatureDataForHours = (JSONArray) hourly.get("temperature_2m");
             double[] temperaturesForHours = new double[24];
             for(int i = 0; i < temperaturesForHours.length; i++) {
-                temperaturesForHours[i] = (double) temperatureDataForHours.get(i);
+                temperaturesForHours[i] = (double) temperatureDataForHours.get(index + i);
                 System.out.println(temperaturesForHours[i]);
             }
 
@@ -71,7 +71,7 @@ public class WeatherApp {
             JSONArray weatherCodeForHours = (JSONArray) hourly.get("weathercode");
             String[] weatherconditionsForHours = new String[24];
             for(int i = 0; i < weatherconditionsForHours.length; i++) {
-                weatherconditionsForHours[i] = convertWeatherCode((long) weatherCodeForHours.get(i));
+                weatherconditionsForHours[i] = convertWeatherCode((long) weatherCodeForHours.get(index + i));
                 System.out.println("Code" + weatherconditionsForHours[i]);
             }
 
@@ -81,7 +81,6 @@ public class WeatherApp {
                 weatherDataHours.put("temperature_hour_" + (i), temperaturesForHours[i]);
                 weatherDataHours.put("weather_condition_hour_" + (i), weatherconditionsForHours[i]);
             }
-
 
             //Indexes for upcoming weekdays
             int[] indexForWeek = new int[6];
@@ -96,6 +95,21 @@ public class WeatherApp {
             //get temperature for upcoming weekdays
             JSONArray temperatureData = (JSONArray) hourly.get("temperature_2m");
             double temperature = (double) temperatureData.get(index);
+
+            //High and Low Temperature for the day
+            double highTemp = temperature;
+            double lowTemp = temperature;
+            for(double temperaturesForHour : temperaturesForHours) {
+                if(temperaturesForHour > highTemp) {
+                    highTemp = temperaturesForHour;
+                }
+            }
+            for(double temperaturesForHour : temperaturesForHours) {
+                if(temperaturesForHour < lowTemp) {
+                    lowTemp = temperaturesForHour;
+                }
+            }
+
             double[] temperatures = new double[6];
             for(int i = 0; i < 6; i++) {
                 temperatures[i] = (double) temperatureData.get(indexForWeek[i]);
@@ -126,12 +140,24 @@ public class WeatherApp {
                 windspeeds[i] = (double) windspeedData.get(indexForWeek[i]);
             }
 
+            //get Visibility
+            JSONArray visibilityData = (JSONArray) hourly.get("visibility");
+            double visibility = (double) visibilityData.get(index);
+
+            //get Precipitation
+            JSONArray PrecipitationData = (JSONArray) hourly.get("precipitation_probability");
+            long precipitation = (long) PrecipitationData.get(index);
+
             //build the weather JSON data object that we are going to access in our frontend
             JSONObject weatherDataDay1 = new JSONObject();
             weatherDataDay1.put("temperature_day_1", temperature);
             weatherDataDay1.put("weather_condition_day_1", weatherCondition);
             weatherDataDay1.put("humidity_day_1", humidity);
             weatherDataDay1.put("windspeed_day_1", windspeed);
+            weatherDataDay1.put("visibility_day_1", visibility);
+            weatherDataDay1.put("precipitation_day_1", precipitation);
+            weatherDataDay1.put("high_temp_day_1", highTemp);
+            weatherDataDay1.put("low_temp_day_1", lowTemp);
 
             JSONObject weatherDataDay2 = new JSONObject();
             weatherDataDay2.put("temperature_day_2", temperatures[0]);
